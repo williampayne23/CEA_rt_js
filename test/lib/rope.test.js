@@ -1,6 +1,6 @@
 import {
   splitAt, insert, deleteRange,
-  createRopeFromMap, rebalance
+  createRopeFromMap, rebalance, RopeLeaf, RopeBranch
 } from '../../lib/rope'
 
 const createLeaf = (text) => createRopeFromMap({
@@ -34,22 +34,22 @@ const branch = createRopeFromMap({
 const deeplyUnbalanced = createRopeFromMap({
   kind: 'branch',
   right: {
-    kind : 'branch',
+    kind: 'branch',
     right: {
       kind: 'branch',
       right: {
         kind: 'branch',
         right: {
-          kind: 'branch', 
-          right: {kind: 'leaf', text: ' jumped'},
-          left: {kind: 'leaf', text: '  fox'}
-      },
-        left: {kind: 'leaf', text: ' brown'}
+          kind: 'branch',
+          right: { kind: 'leaf', text: ' jumped' },
+          left: { kind: 'leaf', text: '  fox' }
+        },
+        left: { kind: 'leaf', text: ' brown' }
       }
     },
-    left: {kind: 'leaf', text: ' quick'}
+    left: { kind: 'leaf', text: ' quick' }
   },
-  left: {kind: 'leaf', text: 'The'}
+  left: { kind: 'leaf', text: 'The' }
 })
 
 
@@ -75,6 +75,27 @@ describe("Split", () => {
   test("Split at string start", () => expect(splitAt(branch, 0).left.toString()).toEqual(''))
   test("Split before string start", () => expect(splitAt(branch, -100).left.toString()).toEqual(''))
   test("Split null branches", () => expect(splitAt(deeplyUnbalanced, 10).left.toString()).toEqual("The quick "))
+  test("Split empty leaf", () => expect(splitAt(new RopeLeaf(""), 1).left.toString()).toEqual(""))
+  test("Split empty branch", () => expect(splitAt(createRopeFromMap({ kind: 'branch' }), 1).left.toString()).toEqual(""))
+  test("Split deeper empty branch", () => expect(splitAt(createRopeFromMap({
+    kind: 'branch',
+    left: { kind: 'branch', left: { kind: 'branch', left: { kind: 'branch' } } }
+  }), 1).left.toString()).toEqual(""))
+
+  describe("Splits always sum to the full string", () => {
+    function combine(splitResult){
+      return splitResult.left.toString() + splitResult.right.toString()
+    }
+    test("Before out of range", () => expect(combine(splitAt(branch, 10))).toEqual(branch.toString()))
+    test("Left branch", () => expect(combine(splitAt(deeplyUnbalanced, 1))).toEqual(deeplyUnbalanced.toString()))
+    test("Center", () => expect(combine(splitAt(deeplyUnbalanced, 3))).toEqual(deeplyUnbalanced.toString()))
+    test("Right branch", () => expect(combine(splitAt(deeplyUnbalanced, 8))).toEqual(deeplyUnbalanced.toString()))
+    test("Undefined left", () => expect(combine(splitAt(createRopeFromMap({
+      kind: 'branch',
+      right: {kind: 'leaf', text: 'Hello'}
+    }), 1))).toEqual('Hello'))
+    test("Null left", () => expect(combine(splitAt(new RopeBranch(null, new RopeLeaf("Hello")), 1))).toEqual("Hello"))
+  })
 })
 
 describe("insertion", () => {
@@ -133,13 +154,13 @@ describe('Extra Credit: tree is rebalanced', () => {
       kind: 'branch',
       left: {
         kind: 'branch',
-        left: {kind: 'leaf', text: 't'},
-        right: {kind: 'leaf', text: 'e'}
+        left: { kind: 'leaf', text: 't' },
+        right: { kind: 'leaf', text: 'e' }
       },
       right: {
         kind: 'branch',
-        left: {kind: 'leaf', text: 's'},
-        right: {kind: 'leaf', text: 't'}
+        left: { kind: 'leaf', text: 's' },
+        right: { kind: 'leaf', text: 't' }
       }
     }))
   })
