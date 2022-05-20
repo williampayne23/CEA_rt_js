@@ -21,7 +21,8 @@ interface IRope {
   size: () => number,
   height: () => number,
   toMap: () => MapRepresentation,
-  isBalanced: () => Boolean
+  isBalanced: () => Boolean,
+  isLeaf: () => Boolean
 }
 
 export class RopeLeaf implements IRope {
@@ -54,6 +55,10 @@ export class RopeLeaf implements IRope {
 
   isBalanced() {
     return true;
+  }
+
+  isLeaf() {
+    return true
   }
 }
 
@@ -121,6 +126,10 @@ export class RopeBranch implements IRope {
     return (this.left ? this.left.toString() : '')
       + (this.right ? this.right.toString() : '')
   }
+
+  isLeaf(): Boolean { 
+    return false
+  }
 }
 
 
@@ -135,20 +144,69 @@ export function createRopeFromMap(map: MapRepresentation): IRope {
   return new RopeBranch(left, right);
 }
 
+
 // This is an internal API. You can implement it however you want. 
 // (E.g. you can choose to mutate the input rope or not)
-function splitAt(rope: IRope, position: number): { left: IRope, right: IRope } {
-  // TODO
+export function splitAt(rope: IRope, position: number): { left: IRope, right: IRope } {
+  if(rope.size() < position){
+    return {left: rope, right: new RopeLeaf("")}
+  }
+
+  if(rope.isLeaf()){
+    //Split leaf
+    const string = rope.toString()
+    const left = string.substring(0, position)
+    const right = string.substring(position)
+    return {left: new RopeLeaf(left), right: new RopeLeaf(right)}
+  }
+
+  const branch = rope as RopeBranch
+  //Split branch
+  //Cases; Split is in left branch, split is in right branch, split is between two branches.
+
+  if(branch.left == null){
+    return splitAt(branch.right, position)
+  }
+  if(branch.right == null){
+    return splitAt(branch.left, position)
+  }
+
+  //Split is between two branches
+  if(branch.left.size() == position){
+    return {left: branch.left, right: branch.right}
+  }
+
+  //Split is in the left branch
+  if(branch.left.size() > position){
+    const splitLeft = splitAt(branch.left, position)
+    return {left: splitLeft.left, right: new RopeBranch(splitLeft.right, branch.right)}
+  }
+
+  //Split is in the right branch
+  const splitRight = splitAt(branch.right, position - branch.left.size())
+  return {left: new RopeBranch(branch.left, splitRight.left), right: splitRight.right}
 }
 
 export function deleteRange(rope: IRope, start: number, end: number): IRope {
-  // TODO
+  const leftBranch = splitAt(rope, start).left
+  const rightBranch = splitAt(rope, end).right
+  return new RopeBranch(leftBranch, rightBranch)
 }
 
 export function insert(rope: IRope, text: string, location: number): IRope {
-  // TODO
+  const {left : leftBranch, right} = splitAt(rope, location)
+  const rightBranch = new RopeBranch(new RopeLeaf(text), right)
+  return new RopeBranch(leftBranch, rightBranch)
 }
 
 export function rebalance(rope: IRope): IRope {
-  // TODO
+  //Recursively splits the tree at the midpoint until you get size 1 leaves
+  //You could change the stopping condition below to choose some other target size for leaves.
+  if(rope.size() <= 1){
+    return rope
+  }
+
+  const midpoint = Math.floor(rope.size() / 2)
+  const {left, right} = splitAt(rope, midpoint)
+  return new RopeBranch(rebalance(left), rebalance(right))
 }
